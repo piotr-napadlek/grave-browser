@@ -1,0 +1,226 @@
+openapi: 3.0.0
+servers:
+  - url: http://localhost:8080
+    name: dev server
+info:
+  version: 0.1.0
+  title: Grave API
+  description: Sample grave and graveyard browsing API that accumulates City of Poznan API data and own DB.
+paths:
+  /graveyards:
+    get:
+      summary: Returns all graveyards found in DB and in External API
+      operationId: getAllGraveyards
+      parameters:
+        - name: db_only
+          in: query
+          required: false
+          description: Specifies if the graveyards are returned only from DB. Defaults to 'false' - will cause call to external service (Poznan API)
+          schema:
+            type: boolean
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Graveyard'
+  /graveyards/{id}:
+    get:
+      summary: Gets given graveyard details
+      operationId: getGraveyardWithId
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID of a graveyard
+          schema:
+            type: integer
+            format: int64
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Graveyard'
+        404:
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    put:
+      summary: Updates selected graveyard details
+      operationId: updateGraveyard
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID of a graveyard
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Grave'
+        required: true
+        description: Changed details of a graveyard
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Grave'
+        400:
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                statusCode: 400
+                message: The ID given in path does not match the ID in the body
+        404:
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                statusCode: 404
+                message: The graveyard was not found in the system
+  /graves:
+    get:
+      summary: Gets graveyards based on a query
+      operationId: findGraveyards
+      parameters:
+        - name: graveyard_type
+          in: query
+          required: false
+          description: The type of the graveyard the grave is located at. Cannot be given if graveyard_name is present.
+          schema:
+            $ref: '#/components/schemas/GraveyardType'
+            example:
+              HISTORIC
+        - name: graveyard_name
+          in: query
+          required: false
+          description: The name of the graveyard the grave is located at, case and non-ascii characters insensitive. Cannot be given if graveyard_type is present.
+          schema:
+            type: string
+            example:
+              Miłostowo
+        - name: first_name
+          in: query
+          required: false
+          description: First name of the deceased, case and non-ascii characters insensitive
+          schema:
+            type: string
+            example:
+              Jan
+        - name: last_name
+          in: query
+          required: false
+          description: Last name of the deceased, case and non-ascii characters insensitive
+          schema:
+            type: string
+            example:
+              Kowalski
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Grave'
+
+# http://www.poznan.pl/featureserver/featureserver.cgi/groby?maxFeatures=1&queryable=cm_id,g_quarter,g_field,g_place,g_date_burial&cm_id=2&g_quarter=1&g_field=31&g_place=18&g_date_burial=1978-03-21
+components:
+  schemas:
+    GraveyardType:
+      type: string
+      enum:
+        - MUNICIPAL
+        - PARISH
+        - HISTORIC
+        - MILITARY
+    Graveyard:
+      description: Graveyard details
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Unique identifier of a graveyard
+        name:
+          type: string
+          description: Name of a graveyard
+        type:
+          $ref: '#/components/schemas/GraveyardType'
+      required:
+        - id
+        - name
+        - type
+      example:
+        id: 1
+        name: Junikowo
+        type: MUNICIPAL
+    Grave:
+      description: Grave details
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Unique identifier of a grave
+        buriedDate:
+          type: string
+          format: date
+          description: Date the deceased was buried
+        birthDate:
+          type: string
+          format: date
+          description: The date the deceased was born
+        buriedFirstName:
+          type: string
+          description: First name of a buried person
+        buriedLastName:
+          type: string
+          description: Last name of a buried person
+        graveyardInfo:
+          $ref: '#/components/schemas/Graveyard'
+      required:
+       - id
+       - buriedDate
+       - birthDate
+       - buriedFirstName
+       - buriedLastName
+       - graveyardInfo
+      example:
+        id: 3213
+        buriedDate: 2001-10-23
+        birthDate: 1939-01-12
+        buriedFirstName: Jan
+        buriedLastName: Kowalski
+        graveyardInfo:
+          id: 2
+          name: Miłostowo
+          type: MUNICIPAL
+    ErrorResponse:
+      type: object
+      description: Error details
+      properties:
+        statusCode:
+          type: integer
+          description: Http status code
+        message:
+          type: string
+          description: Error description
